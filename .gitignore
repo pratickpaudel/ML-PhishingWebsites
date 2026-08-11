@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Local datasets
+data/*.csv
+data/*.xlsx
+
+# Generated results
+results/
+outputs/
+figures/
+
+# Python/cache
+.pytest_cache/
+*.log
+
+# IDE
+.vscode/
+.idea/
