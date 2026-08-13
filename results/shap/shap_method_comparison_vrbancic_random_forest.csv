@@ -1,0 +1,16 @@
+feature,none,random_undersampling,smote,smoteenn,rank_range
+time_domain_activation,1,1,1,1,0
+directory_length,2,3,2,2,1
+length_url,3,2,3,3,1
+qty_slash_directory,4,4,6,4,2
+qty_dot_domain,5,5,5,6,1
+qty_slash_url,6,6,4,5,2
+file_length,7,7,11,9,4
+ttl_hostname,8,10,12,13,5
+qty_dollar_directory,9,9,10,8,2
+qty_dot_directory,10,8,9,7,3
+qty_plus_directory,11,12,24,10,14
+time_domain_expiration,12,14,15,16,4
+qty_and_directory,13,13,27,11,16
+qty_tilde_file,14,11,36,12,25
+qty_exclamation_file,15,16,43,15,28

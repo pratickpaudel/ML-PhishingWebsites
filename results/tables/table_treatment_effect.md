@@ -1,0 +1,44 @@
+| Dataset                  | Classifier             | Imbalance method        |   delta_recall |   delta_precision |   delta_f1 |   delta_pr_auc |
+|:-------------------------|:-----------------------|:------------------------|---------------:|------------------:|-----------:|---------------:|
+| URL-Phish (1:6.02)       | Decision Tree          | SMOTEENN                |         0.0593 |           -0.0476 |     0.005  |        -0.1116 |
+| URL-Phish (1:6.02)       | Decision Tree          | SMOTETomek              |         0.0358 |           -0.0311 |     0.0026 |        -0.0542 |
+| URL-Phish (1:6.02)       | Decision Tree          | SMOTE                   |         0.0325 |           -0.0296 |     0.0017 |        -0.056  |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | SMOTETomek              |         0.0299 |           -0.0284 |     0.0002 |        -0.0006 |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | SMOTE                   |         0.029  |           -0.0282 |    -0.0001 |        -0.0004 |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | Cost-Sensitive Learning |         0.0305 |           -0.0302 |    -0.0004 |        -0.0004 |
+| Vrbancic et al. (1:1.89) | Decision Tree          | SMOTEENN                |         0.015  |           -0.0149 |    -0.0005 |        -0.066  |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | Random Oversampling     |         0.0295 |           -0.03   |    -0.0008 |        -0.0002 |
+| Vrbancic et al. (1:1.89) | Random Forest          | SMOTETomek              |         0.0052 |           -0.0077 |    -0.0013 |        -0.0001 |
+| Vrbancic et al. (1:1.89) | Random Forest          | Cost-Sensitive Learning |        -0.0023 |           -0.0009 |    -0.0016 |        -0.0008 |
+| Vrbancic et al. (1:1.89) | Random Forest          | Random Oversampling     |         0.0046 |           -0.0078 |    -0.0017 |         0.0003 |
+| URL-Phish (1:6.02)       | Decision Tree          | ADASYN                  |         0.0316 |           -0.036  |    -0.0019 |        -0.1148 |
+| URL-Phish (1:6.02)       | Decision Tree          | Random Oversampling     |         0.0217 |           -0.0264 |    -0.0019 |        -0.1011 |
+| Vrbancic et al. (1:1.89) | Random Forest          | ADASYN                  |         0.0131 |           -0.0181 |    -0.0028 |        -0.0002 |
+| Vrbancic et al. (1:1.89) | Decision Tree          | Random Oversampling     |         0.0111 |           -0.0165 |    -0.0032 |        -0.0061 |
+| Vrbancic et al. (1:1.89) | Random Forest          | SMOTE                   |         0.0067 |           -0.0139 |    -0.0037 |        -0.0007 |
+| Vrbancic et al. (1:1.89) | Decision Tree          | SMOTETomek              |         0.008  |           -0.0149 |    -0.0038 |        -0.007  |
+| Vrbancic et al. (1:1.89) | Decision Tree          | SMOTE                   |         0.0067 |           -0.0137 |    -0.0038 |        -0.0019 |
+| URL-Phish (1:6.02)       | Random Forest          | SMOTETomek              |         0.0217 |           -0.0322 |    -0.0046 |        -0.0009 |
+| URL-Phish (1:6.02)       | Random Forest          | SMOTE                   |         0.0217 |           -0.0336 |    -0.0053 |        -0.0012 |
+| Vrbancic et al. (1:1.89) | Decision Tree          | Cost-Sensitive Learning |         0.0134 |           -0.0231 |    -0.0056 |         0.0017 |
+| URL-Phish (1:6.02)       | Decision Tree          | Cost-Sensitive Learning |         0.0181 |           -0.0305 |    -0.0058 |        -0.1055 |
+| Vrbancic et al. (1:1.89) | Decision Tree          | Random Undersampling    |         0.0137 |           -0.0239 |    -0.0059 |        -0.0192 |
+| URL-Phish (1:6.02)       | Random Forest          | Cost-Sensitive Learning |        -0.0024 |           -0.011  |    -0.0065 |        -0.0059 |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | SMOTEENN                |         0.0347 |           -0.0471 |    -0.0074 |        -0.0069 |
+| Vrbancic et al. (1:1.89) | Random Forest          | Random Undersampling    |         0.0126 |           -0.0292 |    -0.0089 |        -0.0009 |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | Random Undersampling    |         0.0321 |           -0.0478 |    -0.009  |        -0.0012 |
+| URL-Phish (1:6.02)       | Random Forest          | ADASYN                  |         0.0226 |           -0.0442 |    -0.0102 |        -0.0154 |
+| URL-Phish (1:6.02)       | Random Forest          | Random Oversampling     |         0.012  |           -0.0343 |    -0.0105 |        -0.0108 |
+| Vrbancic et al. (1:1.89) | Random Forest          | SMOTEENN                |         0.0106 |           -0.0374 |    -0.0141 |        -0.0048 |
+| URL-Phish (1:6.02)       | Random Forest          | SMOTEENN                |         0.0319 |           -0.0631 |    -0.0155 |        -0.0088 |
+| Vrbancic et al. (1:1.89) | Decision Tree          | ADASYN                  |         0.0196 |           -0.0519 |    -0.0183 |        -0.0152 |
+| URL-Phish (1:6.02)       | Support Vector Machine | Cost-Sensitive Learning |         0.0455 |           -0.082  |    -0.0199 |        -0.0108 |
+| Vrbancic et al. (1:1.89) | Support Vector Machine | ADASYN                  |         0.0504 |           -0.1016 |    -0.0309 |        -0.0073 |
+| URL-Phish (1:6.02)       | Support Vector Machine | SMOTE                   |         0.0392 |           -0.0986 |    -0.032  |        -0.012  |
+| URL-Phish (1:6.02)       | Support Vector Machine | SMOTETomek              |         0.0389 |           -0.0989 |    -0.0322 |        -0.0122 |
+| URL-Phish (1:6.02)       | Support Vector Machine | Random Oversampling     |         0.0428 |           -0.1042 |    -0.0335 |        -0.011  |
+| URL-Phish (1:6.02)       | Decision Tree          | Random Undersampling    |         0.0494 |           -0.1141 |    -0.0363 |        -0.0764 |
+| URL-Phish (1:6.02)       | Support Vector Machine | SMOTEENN                |         0.0485 |           -0.1173 |    -0.0384 |        -0.0186 |
+| URL-Phish (1:6.02)       | Support Vector Machine | Random Undersampling    |         0.0404 |           -0.1357 |    -0.0525 |        -0.0237 |
+| URL-Phish (1:6.02)       | Random Forest          | Random Undersampling    |         0.0461 |           -0.1462 |    -0.0551 |        -0.0065 |
+| URL-Phish (1:6.02)       | Support Vector Machine | ADASYN                  |         0.0639 |           -0.3026 |    -0.152  |        -0.0369 |

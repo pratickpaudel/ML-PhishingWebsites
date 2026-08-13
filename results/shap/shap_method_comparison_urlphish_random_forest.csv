@@ -1,0 +1,16 @@
+feature,none,random_undersampling,smote,smoteenn,rank_range
+is_https,1,1,1,1,0
+dom_len,2,4,4,4,2
+digit_ratio,3,3,3,3,0
+entropy,4,2,2,2,2
+digit_cnt,5,6,6,6,1
+spec_ratio,6,5,5,5,1
+dash_cnt,7,11,13,12,6
+url_len,8,8,8,8,0
+path_len,9,10,9,9,1
+dot_cnt,10,9,10,10,1
+letter_cnt,11,7,7,7,4
+subdom_cnt,12,12,11,11,1
+tld_len,13,13,12,13,1
+slash_cnt,14,15,15,15,1
+special_cnt,15,16,16,16,1

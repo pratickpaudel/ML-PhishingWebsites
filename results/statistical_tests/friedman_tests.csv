@@ -1,0 +1,3 @@
+comparison,metric,n_groups,n_blocks,statistic,p_value,significant,mean_ranks,best_group
+classifier,f1,3,14,21.1429,2.5638163074754662e-05,True,"{'random_forest': 1.0, 'decision_tree': 2.429, 'svm': 2.571}",random_forest
+imbalance_method,f1,7,6,18.6429,0.004811298282288194,True,"{'smotetomek': 1.833, 'smote': 3.0, 'cost_sensitive': 3.333, 'random_oversampling': 3.667, 'smoteenn': 4.167, 'adasyn': 5.667, 'random_undersampling': 6.333}",smotetomek

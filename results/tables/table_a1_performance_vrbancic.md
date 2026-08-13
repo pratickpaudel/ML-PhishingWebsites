@@ -1,0 +1,26 @@
+| Classifier             | Imbalance method        |   precision |   recall |     f1 |   roc_auc |   pr_auc |    mcc |
+|:-----------------------|:------------------------|------------:|---------:|-------:|----------:|---------:|-------:|
+| Decision Tree          | No Treatment (Baseline) |      0.9268 |   0.9462 | 0.9364 |    0.9812 |   0.9559 | 0.9024 |
+| Decision Tree          | Random Oversampling     |      0.9103 |   0.9573 | 0.9332 |    0.9784 |   0.9499 | 0.8972 |
+| Decision Tree          | Random Undersampling    |      0.9029 |   0.9599 | 0.9305 |    0.9772 |   0.9367 | 0.893  |
+| Decision Tree          | SMOTE                   |      0.9131 |   0.9529 | 0.9325 |    0.9812 |   0.954  | 0.8962 |
+| Decision Tree          | ADASYN                  |      0.875  |   0.9657 | 0.9181 |    0.9769 |   0.9407 | 0.8741 |
+| Decision Tree          | SMOTEENN                |      0.9119 |   0.9612 | 0.9359 |    0.9561 |   0.89   | 0.9014 |
+| Decision Tree          | SMOTETomek              |      0.9119 |   0.9542 | 0.9326 |    0.9804 |   0.9489 | 0.8962 |
+| Decision Tree          | Cost-Sensitive Learning |      0.9037 |   0.9595 | 0.9308 |    0.9819 |   0.9576 | 0.8935 |
+| Random Forest          | No Treatment (Baseline) |      0.9563 |   0.9602 | 0.9582 |    0.9954 |   0.9915 | 0.9361 |
+| Random Forest          | Random Oversampling     |      0.9485 |   0.9648 | 0.9566 |    0.9954 |   0.9918 | 0.9334 |
+| Random Forest          | Random Undersampling    |      0.9271 |   0.9728 | 0.9494 |    0.9948 |   0.9906 | 0.9223 |
+| Random Forest          | SMOTE                   |      0.9424 |   0.9669 | 0.9545 |    0.9949 |   0.9908 | 0.9302 |
+| Random Forest          | ADASYN                  |      0.9382 |   0.9732 | 0.9554 |    0.9953 |   0.9913 | 0.9315 |
+| Random Forest          | SMOTEENN                |      0.9189 |   0.9708 | 0.9442 |    0.9926 |   0.9867 | 0.9142 |
+| Random Forest          | SMOTETomek              |      0.9485 |   0.9654 | 0.9569 |    0.9953 |   0.9914 | 0.9339 |
+| Random Forest          | Cost-Sensitive Learning |      0.9554 |   0.9579 | 0.9567 |    0.9951 |   0.9907 | 0.9337 |
+| Support Vector Machine | No Treatment (Baseline) |      0.9411 |   0.9285 | 0.9348 |    0.9854 |   0.9758 | 0.9007 |
+| Support Vector Machine | Random Oversampling     |      0.9111 |   0.9581 | 0.934  |    0.9879 |   0.9756 | 0.8984 |
+| Support Vector Machine | Random Undersampling    |      0.8934 |   0.9607 | 0.9258 |    0.9872 |   0.9746 | 0.8858 |
+| Support Vector Machine | SMOTE                   |      0.9129 |   0.9576 | 0.9347 |    0.9877 |   0.9754 | 0.8996 |
+| Support Vector Machine | ADASYN                  |      0.8395 |   0.979  | 0.9039 |    0.9852 |   0.9685 | 0.8533 |
+| Support Vector Machine | SMOTEENN                |      0.894  |   0.9633 | 0.9274 |    0.985  |   0.9689 | 0.8883 |
+| Support Vector Machine | SMOTETomek              |      0.9127 |   0.9584 | 0.935  |    0.9876 |   0.9752 | 0.9    |
+| Support Vector Machine | Cost-Sensitive Learning |      0.9109 |   0.9591 | 0.9344 |    0.9877 |   0.9754 | 0.899  |
