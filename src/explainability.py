@@ -1,22 +1,9 @@
-"""
-SHAP explainability analysis (Section 3.10).
+"""SHAP analysis and heatmap figures.
 
-Two questions are addressed that the performance metrics alone cannot answer:
-
-1. **Global attribution** - which features drive the model's decisions overall?
-2. **Comparative attribution** - does applying an imbalance treatment technique
-   change *which* features the model relies on, not merely how accurate it is?
-
-The second question is the more interesting one for this dissertation, because
-it connects the explainability layer directly to the research question about
-imbalance treatment.
-
-Explainer selection
--------------------
-``TreeExplainer`` is used for the tree-based models because it is exact and
-fast. For the SVM there is no tree structure to exploit, so ``KernelExplainer``
-is used on a small background sample; this is an approximation and is
-computationally expensive, hence the conservative default sample sizes.
+Answers two questions the performance metrics cannot: which features drive
+predictions, and whether imbalance treatment changes them. TreeExplainer is
+used for the tree models; the SVM needs KernelExplainer, which is tractable
+only at reduced scale.
 """
 
 from __future__ import annotations
@@ -28,6 +15,7 @@ from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 
 from config import (
     CLASSIFIERS,
@@ -51,13 +39,7 @@ KERNEL_BACKGROUND = 50
 
 
 class ShapResult(NamedTuple):
-    """Bundle of SHAP output and the data it was computed on.
-
-    ``X_scaled`` is the space the classifier and SHAP operate in, while
-    ``X_raw`` holds the original untransformed feature values. Both are kept
-    because plots need the former but human-readable explanations need the
-    latter (a standardised value such as ``-0.44`` means nothing to a reader).
-    """
+    """Bundle of SHAP output and the data it was computed on."""
 
     values: np.ndarray
     X_scaled: pd.DataFrame
@@ -66,11 +48,7 @@ class ShapResult(NamedTuple):
 
 
 def _fit_model(dataset: str, method: str, classifier: str, minority_ratio: float):
-    """Refit one configuration and return the model with its train/test data.
-
-    The same stratified subsample as the main experiments is used, so the
-    explanations describe the models that were actually evaluated.
-    """
+    """Refit one configuration and return the model with its train/test data."""
     X, y = load_dataset(
         dataset, minority_ratio=minority_ratio, subsample=SUBSAMPLE_SIZE
     )
@@ -85,12 +63,7 @@ def _fit_model(dataset: str, method: str, classifier: str, minority_ratio: float
 
 
 def _transform_through_pipeline(pipeline, X: pd.DataFrame) -> pd.DataFrame:
-    """Apply every pipeline step except the final classifier.
-
-    SHAP must see the data in the same space the classifier was trained in, so
-    the scaler is applied first. Resampling steps are skipped because they alter
-    row counts rather than the feature space.
-    """
+    """Apply every pipeline step except the final classifier."""
     X_out = X
     for name, step in pipeline.steps[:-1]:
         if hasattr(step, "transform"):
@@ -105,14 +78,7 @@ def compute_shap_values(
     minority_ratio: float = MINORITY_RATIO,
     sample_size: int | None = None,
 ):
-    """Compute SHAP values for one configuration.
-
-    Returns
-    -------
-    ShapResult
-        Named tuple of ``(values, X_scaled, X_raw, model)``, where ``values`` is
-        a 2-D array of per-instance contributions towards the phishing class.
-    """
+    """Compute SHAP values for one configuration."""
     import shap
 
     model, X_train, X_test, _ = _fit_model(dataset, method, classifier, minority_ratio)
@@ -148,12 +114,7 @@ def compute_shap_values(
 
 
 def _select_positive_class(shap_values) -> np.ndarray:
-    """Reduce SHAP output to a 2-D array of contributions to the phishing class.
-
-    SHAP returns different shapes depending on the explainer and model: a list
-    of per-class arrays, a 3-D array, or a plain 2-D array. All three are
-    normalised here so downstream code can assume ``(n_samples, n_features)``.
-    """
+    """Reduce SHAP output to a 2-D array of contributions to the phishing class."""
     if isinstance(shap_values, list):
         # One array per class; index 1 is the positive (phishing) class.
         return np.asarray(shap_values[1] if len(shap_values) > 1 else shap_values[0])
@@ -188,12 +149,7 @@ def local_explanation(
     instance_index: int = 0,
     top_n: int = 10,
 ) -> pd.DataFrame:
-    """Per-feature contributions for a single website (local explanation).
-
-    Feature values are reported on their original scale so the explanation is
-    readable, while the SHAP contributions come from the scaled space the model
-    was trained in.
-    """
+    """Per-feature contributions for a single website (local explanation)."""
     contributions = result.values[instance_index]
     return (
         pd.DataFrame(
@@ -221,12 +177,7 @@ def compare_across_methods(
     verbose: bool = True,
     sample_size: int | None = None,
 ) -> pd.DataFrame:
-    """Compare global feature importance across imbalance treatment methods.
-
-    This is the analysis that supports the argument in Section 3.10: if the
-    ranking shifts between methods, then imbalance treatment changes not only
-    predictive performance but also which evidence the model uses.
-    """
+    """Compare global feature importance across imbalance treatment methods."""
     methods = methods or ["none", "smote", "smoteenn", "random_undersampling"]
     frames = []
 
@@ -297,19 +248,10 @@ def plot_summary(
 
 
 # ---------------------------------------------------------------------------
-# Full-scale SHAP
-# ---------------------------------------------------------------------------
-# The functions above compute SHAP values on the SUBSAMPLE_SIZE reduction and
-# re-run grid search for every configuration explained. The ones below do the
-# same analysis on the complete datasets, reusing the hyperparameters already
-# selected at reduced scale, so the explanations describe the models actually
-# reported rather than models fitted to a different amount of data.
-#
-# The SVM is out of scope here: KernelExplainer approximates by repeated model
-# evaluation against a background sample, which is intractable on 93,280
-# training rows. That is a limitation to state, not one to work around.
 
-FULL_DIR = RESULTS_DIR / "full"
+from config import SHAP_DIR  # noqa: E402
+
+FULL_DIR = SHAP_DIR
 
 # Methods compared by default. A full refit is required per method, so the
 # default is four rather than all eight.
@@ -426,13 +368,33 @@ def compare_across_methods_full(
 
 
 # ---------------------------------------------------------------------------
-# Heatmap figures
-# ---------------------------------------------------------------------------
-# Two figures per (dataset, classifier) pair, because they answer different
-# questions. The rank heatmap shows *which* features the model relies on under
-# each treatment - the figure that carries the Section 3.10 argument. The
-# magnitude heatmap shows *how much*. Ranks can hold steady while magnitudes
-# shift substantially, so one figure alone would overstate whatever it shows.
+
+
+# Single-hue ramps with monotonic lightness, so the figures stay legible when
+# printed without colour.
+_RANK_CMAP = LinearSegmentedColormap.from_list(
+    "rank", ["#1b3a5c", "#3d6d99", "#7ba3c8", "#b9cfe2", "#e8eef4"]
+)
+_MAG_CMAP = LinearSegmentedColormap.from_list(
+    "mag", ["#f2f0ec", "#d6c9b4", "#b89b6f", "#8f6f3d", "#5c4420"]
+)
+
+_HEATMAP_LABELS = {
+    "none": "No Treatment",
+    "random_oversampling": "Random\nOversampling",
+    "random_undersampling": "Random\nUndersampling",
+    "smote": "SMOTE",
+    "adasyn": "ADASYN",
+    "smoteenn": "SMOTEENN",
+    "smotetomek": "SMOTETomek",
+    "cost_sensitive": "Cost-Sensitive",
+}
+
+
+def _relative_luminance(rgba) -> float:
+    """Perceived brightness, used to pick annotation colour."""
+    r, g, b = rgba[:3]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
 def _ordered_methods(columns) -> list:
@@ -441,43 +403,61 @@ def _ordered_methods(columns) -> list:
 
 
 def _draw_heatmap(matrix, title, cbar_label, path, annotate_as_int, reverse_scale):
-    """Render one heatmap. Height scales with row count so labels stay legible."""
+    """Render one heatmap, scaling height with row count."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     n_rows, n_cols = matrix.shape
-    fig, ax = plt.subplots(figsize=(1.6 * n_cols + 3.5, 0.42 * n_rows + 2.2))
-    im = ax.imshow(
-        matrix.to_numpy(dtype=float),
-        cmap="viridis_r" if reverse_scale else "viridis",
-        aspect="auto",
-    )
+    fig, ax = plt.subplots(figsize=(1.35 * n_cols + 3.2, 0.40 * n_rows + 2.0))
+
+    cmap = _RANK_CMAP if reverse_scale else _MAG_CMAP
+    values = matrix.to_numpy(dtype=float)
+    im = ax.imshow(values, cmap=cmap, aspect="auto")
 
     ax.set_xticks(np.arange(n_cols))
-    ax.set_xticklabels([METHOD_LABELS.get(c, c) for c in matrix.columns],
-                       rotation=30, ha="right", fontsize=9)
+    ax.set_xticklabels(
+        [_HEATMAP_LABELS.get(c, c) for c in matrix.columns],
+        fontsize=9, va="top", linespacing=1.25,
+    )
+    ax.tick_params(axis="x", pad=8)
     ax.set_yticks(np.arange(n_rows))
-    ax.set_yticklabels(matrix.index, fontsize=8)
+    ax.set_yticklabels(matrix.index, fontsize=8.5)
+    ax.tick_params(length=0)
 
-    values = matrix.to_numpy(dtype=float)
-    midpoint = (np.nanmin(values) + np.nanmax(values)) / 2
+    ax.set_xticks(np.arange(-0.5, n_cols, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, n_rows, 1), minor=True)
+    ax.grid(which="minor", color="white", linewidth=1.6)
+    ax.tick_params(which="minor", length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    norm = im.norm
     for i in range(n_rows):
         for j in range(n_cols):
             v = values[i, j]
             if np.isnan(v):
                 continue
-            # Flip the text colour on dark cells so annotations stay readable.
-            dark = (v < midpoint) if reverse_scale else (v > midpoint)
-            ax.text(j, i, f"{int(round(v))}" if annotate_as_int else f"{v:.3f}",
-                    ha="center", va="center", fontsize=8,
-                    color="white" if dark else "black")
+            # Pick text colour from the rendered cell, not the raw value: the
+            # colormap is not linear in lightness.
+            colour = "white" if _relative_luminance(cmap(norm(v))) < 0.55 else "#1a1a1a"
+            ax.text(
+                j, i,
+                f"{int(round(v))}" if annotate_as_int else f"{v:.3f}",
+                ha="center", va="center",
+                fontsize=8.5, color=colour, fontweight="medium",
+            )
 
-    ax.set_title(title, fontsize=11, pad=12)
-    fig.colorbar(im, ax=ax, label=cbar_label, fraction=0.03, pad=0.02)
+    ax.set_title(title, fontsize=10.5, pad=14, loc="left", color="#1a1a1a")
+
+    cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.015)
+    cbar.set_label(cbar_label, fontsize=9)
+    cbar.outline.set_visible(False)
+    cbar.ax.tick_params(length=2, labelsize=8)
+
     fig.tight_layout()
-    fig.savefig(path, dpi=200, bbox_inches="tight")
+    fig.savefig(path, dpi=220, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"  wrote {path.name}")
 

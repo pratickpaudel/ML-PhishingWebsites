@@ -1,35 +1,9 @@
 #!/usr/bin/env python
-"""
-End-to-end pipeline runner (full data scale).
+"""End-to-end pipeline runner.
 
-Executes the complete experimental procedure in the order shown in the
-methodology diagram, on the complete datasets (88,647 and 116,600 instances):
-
-    dataset loading -> preprocessing -> stratified split -> imbalance treatment
-    -> classifier fitting -> evaluation -> comparative analysis
-    -> statistical significance testing -> SHAP explainability -> figures
-
-All outputs are written to ``results/full/`` and ``figures/``.
-
-Hyperparameters
----------------
-Hyperparameters are not searched here. Each configuration reuses the selection
-recorded in ``results/results_multiseed.csv``, which was produced by grid
-search on a stratified subsample, and is fitted once. Grid search at full scale
-is a multi-day job dominated by the SVM, and reusing the selections also keeps
-the comparison clean: re-tuning would confound the effect of sample size with
-the effect of re-selection.
-
-If that file is missing, regenerate it with:
-
-    python src/experiment.py --seeds 42 1 2 --output results_multiseed.csv
-
-Usage
------
-    python run_pipeline.py                    # full pipeline
-    python run_pipeline.py --quick            # small subset, for a smoke test
-    python run_pipeline.py --skip-experiments # re-analyse existing results
-    python run_pipeline.py --no-shap          # skip the SHAP stage (the slow one)
+Runs the full-scale matrix, analysis, statistical tests and SHAP in sequence.
+Hyperparameters are read from results_multiseed.csv rather than re-searched;
+see Section 3.5. Outputs go to results/full/.
 """
 
 from __future__ import annotations
@@ -43,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from config import DATASETS, RESULTS_DIR  # noqa: E402
 
-FULL_DIR = RESULTS_DIR / "full"
+FULL_DIR = RESULTS_DIR
 
 
 def banner(step: str, title: str) -> None:
@@ -105,7 +79,7 @@ def main() -> int:
 
     # analysis.py writes to a fixed set of filenames in its results directory.
     # Redirecting it keeps the tables beside the data they describe.
-    analysis.RESULTS_DIR = FULL_DIR
+    analysis.SOURCE_DIR = FULL_DIR
     analysis.generate_all(results_file=args.results)
 
     # -- Step 9: statistical significance -----------------------------------

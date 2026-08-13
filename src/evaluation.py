@@ -1,17 +1,8 @@
-"""
-Performance evaluation on the held-out test set (Step 7 of the pipeline).
+"""Metric computation on the held-out test set.
 
-Accuracy is recorded for completeness but is deliberately *not* used to draw
-conclusions: on imbalanced data a classifier can score highly simply by
-predicting the majority class. The metrics that drive the analysis are those
-focused on the minority (phishing) class:
-
-* **Recall**    - proportion of phishing sites detected (false negatives are costly)
-* **Precision** - proportion of phishing predictions that are correct
-* **F1-score**  - harmonic mean of the two
-* **ROC-AUC**   - overall separability, threshold-free
-* **PR-AUC**    - precision-recall area, the more informative AUC under imbalance
-* **MCC**       - balanced single-figure summary that is robust to skew
+Accuracy is recorded but not used to draw conclusions: on imbalanced data a
+classifier can score highly by predicting the majority class. Recall,
+precision, F1, PR-AUC and MCC drive the analysis.
 """
 
 from __future__ import annotations
@@ -42,12 +33,7 @@ METRIC_COLUMNS = [
 
 
 def evaluate(y_true, y_pred, y_scores=None) -> dict:
-    """Compute the full metric set for one experimental configuration.
-
-    ``y_scores`` are continuous scores for the positive class. When omitted the
-    threshold-free metrics are returned as ``NaN`` rather than being silently
-    approximated from hard labels.
-    """
+    """Compute the full metric set for one experimental configuration."""
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
 

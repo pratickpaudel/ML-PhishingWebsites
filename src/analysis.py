@@ -1,16 +1,5 @@
-"""
-Result aggregation and table generation (Step 8 of the pipeline).
-
-Turns the raw ``results.csv`` produced by ``experiment.py`` into the summary
-tables required by Chapter 5:
-
-* Table 5.1 / 5.2 - per-dataset performance of every configuration
-* Table 5.3        - mean performance by classifier
-* Table 5.4        - mean performance by imbalance method
-* Table 5.5        - best and worst configuration per dataset
-
-Every table is written both as a CSV (for inspection) and as a Markdown file
-(for pasting into the dissertation).
+"""Aggregates results.csv into the summary tables used in Chapter 6 and
+Appendix A. Each table is written as both CSV and Markdown.
 """
 
 from __future__ import annotations
@@ -21,12 +10,18 @@ import pandas as pd
 
 from config import (
     CLASSIFIER_LABELS,
+    DATASETS,
     DATASET_LABELS,
     METHOD_LABELS,
     RESULTS_DIR,
+    TABLES_DIR,
 )
 
 # Metrics reported in the dissertation tables, in presentation order.
+# Directory the results table is read from. run_pipeline.py points this at
+# results/full/; tables are always written to TABLES_DIR.
+SOURCE_DIR = RESULTS_DIR
+
 REPORT_METRICS = ["precision", "recall", "f1", "roc_auc", "pr_auc", "mcc"]
 
 # Ordering used so tables read consistently rather than alphabetically.
@@ -44,11 +39,9 @@ CLASSIFIER_ORDER = ["decision_tree", "random_forest", "svm"]
 
 
 # ---------------------------------------------------------------------------
-# Loading
-# ---------------------------------------------------------------------------
 def load_results(results_file: str = "results.csv") -> pd.DataFrame:
     """Load the results table, dropping any configurations that failed."""
-    df = pd.read_csv(RESULTS_DIR / results_file)
+    df = pd.read_csv(SOURCE_DIR / results_file)
     if "error" in df.columns:
         failed = df["error"].notna().sum()
         if failed:
@@ -67,21 +60,16 @@ def _ordered(df: pd.DataFrame, col: str, order: list[str]) -> pd.DataFrame:
 
 def _write(df: pd.DataFrame, name: str, index: bool = False) -> None:
     """Write a table as both CSV and Markdown."""
-    df.to_csv(RESULTS_DIR / f"{name}.csv", index=index)
-    with open(RESULTS_DIR / f"{name}.md", "w") as fh:
+    TABLES_DIR.mkdir(parents=True, exist_ok=True)
+    df.to_csv(TABLES_DIR / f"{name}.csv", index=index)
+    with open(TABLES_DIR / f"{name}.md", "w") as fh:
         fh.write(df.to_markdown(index=index))
     print(f"  wrote {name}.csv / {name}.md")
 
 
 # ---------------------------------------------------------------------------
-# Tables
-# ---------------------------------------------------------------------------
 def table_per_dataset(df: pd.DataFrame, dataset: str) -> pd.DataFrame:
-    """Full configuration-level results for one dataset (Tables 5.1 / 5.2).
-
-    If the sweep was repeated under several seeds, metrics are averaged across
-    replications so that each classifier/method pair appears exactly once.
-    """
+    """Full configuration-level results for one dataset (Tables 5.1 / 5.2)."""
     sub = df[df["dataset"] == dataset].copy()
 
     if "seed" in sub.columns and sub["seed"].nunique() > 1:
@@ -104,7 +92,7 @@ def table_per_dataset(df: pd.DataFrame, dataset: str) -> pd.DataFrame:
 
 
 def table_by_classifier(df: pd.DataFrame, exclude_baseline: bool = True) -> pd.DataFrame:
-    """Mean performance per classifier across all methods (Table 5.3)."""
+    """Mean performance per classifier across all methods (Table 6.3)."""
     sub = df[df["imbalance_method"] != "none"] if exclude_baseline else df
     agg = sub.groupby("classifier")[REPORT_METRICS].mean().round(4).reset_index()
     agg = _ordered(agg, "classifier", CLASSIFIER_ORDER)
@@ -113,7 +101,7 @@ def table_by_classifier(df: pd.DataFrame, exclude_baseline: bool = True) -> pd.D
 
 
 def table_by_method(df: pd.DataFrame) -> pd.DataFrame:
-    """Mean performance per imbalance method across classifiers (Table 5.4)."""
+    """Mean performance per imbalance method across classifiers (Table 6.4)."""
     agg = df.groupby("imbalance_method")[REPORT_METRICS].mean().round(4).reset_index()
     agg = _ordered(agg, "imbalance_method", METHOD_ORDER)
     agg["imbalance_method"] = agg["imbalance_method"].map(METHOD_LABELS)
@@ -123,7 +111,7 @@ def table_by_method(df: pd.DataFrame) -> pd.DataFrame:
 def table_best_worst(
     df: pd.DataFrame, metric: str = "f1", exclude_baseline: bool = True
 ) -> pd.DataFrame:
-    """Best and worst configuration per dataset (Table 5.5)."""
+    """Best and worst configuration per dataset (Table 6.5)."""
     sub = df[df["imbalance_method"] != "none"] if exclude_baseline else df
 
     # With repeated runs, rank conditions by their mean across replications
@@ -167,12 +155,7 @@ def table_best_worst(
 
 
 def table_treatment_effect(df: pd.DataFrame) -> pd.DataFrame:
-    """Change in performance relative to the untreated baseline.
-
-    This isolates the contribution of imbalance treatment itself, which is the
-    central question of the dissertation: each treated configuration is compared
-    against the same classifier trained on untreated data.
-    """
+    """Change in performance relative to the untreated baseline."""
     # Each treated run is matched to the baseline from the *same* replication,
     # so the seed must be part of the key when the sweep has been repeated.
     key_cols = ["dataset", "classifier"]
@@ -223,31 +206,33 @@ def table_treatment_effect(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Orchestration
-# ---------------------------------------------------------------------------
 def generate_all(results_file: str = "results.csv", metric: str = "f1") -> dict:
-    """Generate every Chapter 5 table and write it to the results directory."""
+    """Generate every Chapter 6 table and write it to the results directory."""
     df = load_results(results_file)
     tables = {}
 
     print("Generating tables:")
 
-    for i, dataset in enumerate(sorted(df["dataset"].unique()), start=1):
+    # Ordered by DATASETS rather than alphabetically, so the appendix tables
+    # appear in the same order as the chapters discuss them.
+    present = [d for d in DATASETS if d in set(df["dataset"])]
+    present += [d for d in sorted(df["dataset"].unique()) if d not in present]
+    for i, dataset in enumerate(present, start=1):
         t = table_per_dataset(df, dataset)
-        tables[f"table_5_{i}_{dataset}"] = t
-        _write(t, f"table_5_{i}_performance_{dataset}")
+        tables[f"table_a{i}_{dataset}"] = t
+        _write(t, f"table_a{i}_performance_{dataset}")
 
     t3 = table_by_classifier(df)
-    tables["table_5_3_classifiers"] = t3
-    _write(t3, "table_5_3_by_classifier")
+    tables["table_6_3_classifiers"] = t3
+    _write(t3, "table_6_3_by_classifier")
 
     t4 = table_by_method(df)
-    tables["table_5_4_methods"] = t4
-    _write(t4, "table_5_4_by_method")
+    tables["table_6_4_methods"] = t4
+    _write(t4, "table_6_4_by_method")
 
     t5 = table_best_worst(df, metric=metric)
-    tables["table_5_5_best_worst"] = t5
-    _write(t5, "table_5_5_best_worst")
+    tables["table_6_5_best_worst"] = t5
+    _write(t5, "table_6_5_best_worst")
 
     t6 = table_treatment_effect(df)
     if not t6.empty:
@@ -294,12 +279,12 @@ def _print_summary(t3, t4, t5, t6) -> None:
         print(recall_effect.to_string())
 
     print("\n" + "=" * 78)
-    print(f"All tables written to {RESULTS_DIR}")
+    print(f"All tables written to {TABLES_DIR}")
     print("=" * 78)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate Chapter 5 result tables.")
+    parser = argparse.ArgumentParser(description="Generate Chapter 6 result tables.")
     parser.add_argument("--results", default="results.csv")
     parser.add_argument("--metric", default="f1")
     args = parser.parse_args()

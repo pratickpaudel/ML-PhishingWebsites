@@ -12,6 +12,8 @@ data/*.xlsx
 results/
 outputs/
 figures/
+results/predictions/*.npz
+!results/predictions/*__full.npz
 
 # Python/cache
 .pytest_cache/

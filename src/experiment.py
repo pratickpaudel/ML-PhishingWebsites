@@ -1,17 +1,10 @@
-"""
-Experiment runner (Steps 1-7 executed across the full comparison matrix).
+"""Experiment runner.
 
-Each configuration is one (dataset, imbalance method, classifier) triple. For
-every configuration the runner:
-
-1. loads the dataset and induces the controlled imbalance ratio,
-2. cleans the features and produces the stratified train-test split,
-3. fits a grid search whose pipeline resamples inside each CV fold,
-4. refits the winning hyperparameters on the full treated training set,
-5. evaluates once on the untouched test set.
-
-Per-configuration test predictions are persisted alongside the metrics because
-McNemar's test operates on paired predictions rather than summary scores.
+Each configuration is one (dataset, imbalance method, classifier) triple.
+run_all() performs grid search on the subsample and is used for hyperparameter
+selection; run_full_all() reuses those selections and fits once on the full
+data. Test predictions are saved because McNemar's test needs paired
+predictions rather than summary scores.
 """
 
 from __future__ import annotations
@@ -41,7 +34,7 @@ from imbalance import method_family
 from models import build_pipeline, build_search, get_scores
 from preprocessing import prepare, split_summary
 
-PREDICTIONS_DIR = RESULTS_DIR / "predictions"
+from config import CHECKPOINTS_DIR, PREDICTIONS_DIR  # noqa: E402
 PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -52,13 +45,7 @@ def config_id(
     ratio: float | None,
     seed: int = RANDOM_STATE,
 ) -> str:
-    """Stable identifier used for result rows and prediction filenames.
-
-    The seed is part of the identifier so that repeated runs do not overwrite
-    one another's saved predictions. ``ratio`` is ``None`` in the main
-    experiments, where each dataset's own class distribution is used, and is
-    recorded as ``rnative`` in that case.
-    """
+    """Stable identifier used for result rows and prediction filenames."""
     ratio_tag = "native" if ratio is None else f"{int(round(ratio * 100))}"
     return f"{dataset}__{method}__{classifier}__r{ratio_tag}__s{seed}"
 
@@ -71,13 +58,7 @@ def run_configuration(
     save_predictions: bool = True,
     seed: int = RANDOM_STATE,
 ) -> dict:
-    """Execute a single experimental configuration and return its metrics.
-
-    ``seed`` drives the induced downsampling, the train-test split, the
-    cross-validation folds, the sampler and the classifier. Repeating the sweep
-    under different seeds therefore produces independent replications rather
-    than identical re-runs.
-    """
+    """Execute a single experimental configuration and return its metrics."""
     started = time.time()
 
     X, y = load_dataset(
@@ -139,16 +120,7 @@ def run_all(
     verbose: bool = True,
     seeds=None,
 ) -> pd.DataFrame:
-    """Run the full comparison matrix and write the results table to disk.
-
-    Parameters
-    ----------
-    seeds
-        One or more random seeds. Each seed repeats the entire matrix as an
-        independent replication, which increases the number of matched blocks
-        available to the Friedman and post-hoc tests. Defaults to the single
-        project seed.
-    """
+    """Run the full comparison matrix and write the results table to disk."""
     datasets = datasets or DATASETS
     classifiers = classifiers or CLASSIFIERS
     seeds = list(seeds) if seeds else [RANDOM_STATE]
@@ -214,25 +186,12 @@ def run_all(
 
 
 # ---------------------------------------------------------------------------
-# Full-scale runs
-# ---------------------------------------------------------------------------
-# The functions below run the same matrix on the complete datasets (88,647 and
-# 116,600 instances) rather than the SUBSAMPLE_SIZE reduction. Two differences
-# from the reduced-scale sweep above, both deliberate:
-#
-# 1. Hyperparameters are not re-searched. Each configuration reuses the
-#    selection already recorded in results/results_multiseed.csv and is fitted
-#    once, which is what makes the run tractable: grid search at full scale is
-#    a multi-day job dominated by the SVM. It is also the cleaner comparison,
-#    since re-tuning would confound sample size with re-selection.
-# 2. Each configuration is checkpointed on completion, so an interrupted run
-#    resumes rather than restarting.
-#
-# Output goes to results/full/ and never touches results/.
 
-FULL_DIR = RESULTS_DIR / "full"
-FULL_ROWS_DIR = FULL_DIR / "rows"
-FULL_PREDICTIONS_DIR = FULL_DIR / "predictions"
+# Full-scale outputs sit alongside the reduced-scale ones; the "__full" tag in
+# each config_id keeps the prediction files distinct.
+FULL_DIR = RESULTS_DIR
+FULL_ROWS_DIR = CHECKPOINTS_DIR
+FULL_PREDICTIONS_DIR = PREDICTIONS_DIR
 
 for _d in (FULL_DIR, FULL_ROWS_DIR, FULL_PREDICTIONS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
@@ -242,11 +201,7 @@ COMPARISON_METRICS = ["precision", "recall", "f1", "roc_auc", "pr_auc", "mcc"]
 
 
 def load_tuned_params(results_file: str = "results_multiseed.csv") -> dict:
-    """Map (dataset, method, classifier, seed) -> tuned hyperparameters.
-
-    Read from the reduced-scale results table, where the selection made by grid
-    search was stored with the ``classifier__`` prefix already stripped.
-    """
+    """Map (dataset, method, classifier, seed) -> tuned hyperparameters."""
     path = RESULTS_DIR / results_file
     if not path.exists():
         raise FileNotFoundError(
@@ -424,12 +379,7 @@ def compare_scales(
     tuning_file: str = "results_multiseed.csv",
     output_name: str = "results.csv",
 ) -> pd.DataFrame:
-    """Compare full-scale results against the reduced-scale tuning run.
-
-    Included because it is the check that justifies reusing the tuned
-    hyperparameters: if the ranking of techniques is preserved across a
-    four- to six-fold increase in training data, the selections transfer.
-    """
+    """Compare full-scale results against the reduced-scale tuning run."""
     full = collect_full(output_name)
     if full.empty:
         return full

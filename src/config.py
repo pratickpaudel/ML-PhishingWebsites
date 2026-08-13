@@ -1,9 +1,5 @@
-"""
-Central configuration for the phishing detection experiments.
-
-All experimental constants live here so that a single change propagates
-through the whole pipeline. This supports the reproducibility requirement
-described in Chapter 4.
+"""Central configuration. All experimental constants live here so a single
+change propagates through the pipeline.
 """
 
 import os
@@ -14,24 +10,24 @@ from pathlib import Path
 os.environ.setdefault("LOKY_MAX_CPU_COUNT", str(os.cpu_count() or 1))
 
 # ---------------------------------------------------------------------------
-# Reproducibility
-# ---------------------------------------------------------------------------
 RANDOM_STATE = 42
 
-# ---------------------------------------------------------------------------
-# Paths
 # ---------------------------------------------------------------------------
 CODE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = CODE_DIR / "data"
 RESULTS_DIR = CODE_DIR / "results"
-FIGURES_DIR = CODE_DIR / "figures"
+FIGURES_DIR = RESULTS_DIR / "figures"
+TABLES_DIR = RESULTS_DIR / "tables"
+STATS_DIR = RESULTS_DIR / "statistical_tests"
+SHAP_DIR = RESULTS_DIR / "shap"
+PREDICTIONS_DIR = RESULTS_DIR / "predictions"
+CHECKPOINTS_DIR = RESULTS_DIR / "checkpoints"
 MODELS_DIR = CODE_DIR / "models"
 
-for _d in (DATA_DIR, RESULTS_DIR, FIGURES_DIR, MODELS_DIR):
+for _d in (DATA_DIR, RESULTS_DIR, FIGURES_DIR, TABLES_DIR, STATS_DIR,
+           SHAP_DIR, PREDICTIONS_DIR, CHECKPOINTS_DIR, MODELS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
-# ---------------------------------------------------------------------------
-# Experimental design
 # ---------------------------------------------------------------------------
 TEST_SIZE = 0.20          # stratified 80/20 train-test split
 CV_FOLDS = 5              # stratified 5-fold cross-validation
@@ -39,9 +35,6 @@ SCORING = "f1"            # metric used to select hyperparameters
 ALPHA = 0.05              # significance level for statistical tests
 
 # Induced imbalance is NOT used in the main experiments: both datasets in
-# DATASETS are already imbalanced as published (Vrbancic ~1:1.89, URL-Phish
-# ~1:6.02). This is retained only for the optional severity sensitivity
-# analysis described in Chapter 6.
 MINORITY_RATIO = None
 
 # Ratios used for the optional sensitivity analysis (Chapter 6).
@@ -50,10 +43,6 @@ SENSITIVITY_RATIOS = [0.05, 0.10, 0.20]
 DATASETS = ["vrbancic", "urlphish"]
 
 # Stratified subsampling size. Both datasets are large (88k and 116k rows) and
-# the SVM scales roughly quadratically in training set size, which makes the
-# full data impractical across a repeated 144-configuration sweep. Subsampling
-# preserves the natural class ratio exactly; only the volume is reduced.
-# Set to None to use the datasets in full.
 SUBSAMPLE_SIZE = 20_000
 
 IMBALANCE_METHODS = [
@@ -73,8 +62,6 @@ CLASSIFIERS = ["decision_tree", "random_forest", "svm"]
 # It is included above so a reference point is always available.
 CORE_IMBALANCE_METHODS = [m for m in IMBALANCE_METHODS if m != "none"]
 
-# ---------------------------------------------------------------------------
-# Display names (used in tables and figures)
 # ---------------------------------------------------------------------------
 METHOD_LABELS = {
     "none": "No Treatment (Baseline)",

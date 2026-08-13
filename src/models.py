@@ -1,13 +1,9 @@
-"""
-Classifiers, hyperparameter grids and the leakage-safe training pipeline
-(Steps 5-6 of the pipeline).
+"""Classifiers, hyperparameter grids and the training pipeline.
 
-The central methodological device here is ``imblearn.pipeline.Pipeline``. By
-placing scaling, resampling and the classifier inside a single pipeline object
-and passing that object to ``GridSearchCV``, the resampling is executed
-independently within each cross-validation fold and applied only to that fold's
-training partition. Synthetic samples therefore never leak into the validation
-partition, which would otherwise produce optimistically biased estimates.
+Scaling, resampling and the classifier are wrapped in a single
+imblearn Pipeline so resampling runs inside each CV fold and applies only to
+that fold's training partition. Without this, synthetic samples leak into
+validation and the estimates are optimistically biased.
 """
 
 from __future__ import annotations
@@ -25,15 +21,8 @@ from imbalance import get_sampler, uses_class_weight
 
 
 # ---------------------------------------------------------------------------
-# Classifiers
-# ---------------------------------------------------------------------------
 def get_classifier(name: str, class_weight=None, random_state: int = RANDOM_STATE):
-    """Instantiate a classifier.
-
-    ``class_weight`` is set to ``"balanced"`` only for the cost-sensitive
-    condition; it stays ``None`` for every resampling condition so that the two
-    strategies are not unintentionally combined.
-    """
+    """Instantiate a classifier."""
     if name == "decision_tree":
         return DecisionTreeClassifier(
             class_weight=class_weight,
@@ -49,8 +38,6 @@ def get_classifier(name: str, class_weight=None, random_state: int = RANDOM_STAT
 
     if name == "svm":
         # decision_function is used for threshold-free metrics, so probability
-        # estimation (which requires expensive internal cross-validation) is
-        # left disabled.
         return SVC(
             class_weight=class_weight,
             random_state=random_state,
@@ -60,8 +47,6 @@ def get_classifier(name: str, class_weight=None, random_state: int = RANDOM_STAT
     raise ValueError(f"Unknown classifier '{name}'.")
 
 
-# ---------------------------------------------------------------------------
-# Hyperparameter grids (Section 4.5)
 # ---------------------------------------------------------------------------
 PARAM_GRIDS = {
     "decision_tree": {
@@ -87,22 +72,12 @@ def get_param_grid(classifier_name: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Pipeline construction
-# ---------------------------------------------------------------------------
 def build_pipeline(
     classifier_name: str,
     imbalance_method: str,
     random_state: int = RANDOM_STATE,
 ) -> ImbPipeline:
-    """Assemble scaling, optional resampling and the classifier.
-
-    Step order is significant:
-
-    1. ``scaler``     - fitted on the fold's training partition only.
-    2. ``sampler``    - resamples that training partition only (omitted for the
-                        baseline and for cost-sensitive learning).
-    3. ``classifier`` - trained on the treated training partition.
-    """
+    """Assemble scaling, optional resampling and the classifier."""
     class_weight = "balanced" if uses_class_weight(imbalance_method) else None
     steps = [("scaler", StandardScaler())]
 
@@ -124,12 +99,7 @@ def build_search(
     n_jobs: int = -1,
     random_state: int = RANDOM_STATE,
 ) -> GridSearchCV:
-    """Wrap the pipeline in a stratified grid search.
-
-    Stratified folds are used because standard k-fold can produce folds with
-    very few minority instances on imbalanced data, which destabilises the
-    hyperparameter selection.
-    """
+    """Wrap the pipeline in a stratified grid search."""
     pipeline = build_pipeline(classifier_name, imbalance_method, random_state)
     cv = StratifiedKFold(
         n_splits=cv_folds,
@@ -149,15 +119,8 @@ def build_search(
 
 
 # ---------------------------------------------------------------------------
-# Scoring helper
-# ---------------------------------------------------------------------------
 def get_scores(fitted_model, X) -> np.ndarray:
-    """Continuous scores for the positive (phishing) class.
-
-    ROC-AUC and PR-AUC are threshold-free and therefore need a ranking rather
-    than hard labels. ``predict_proba`` is preferred when available, otherwise
-    ``decision_function`` is used (the SVM case).
-    """
+    """Continuous scores for the positive (phishing) class."""
     if hasattr(fitted_model, "predict_proba"):
         try:
             return fitted_model.predict_proba(X)[:, 1]

@@ -1,22 +1,9 @@
-"""
-Statistical significance testing (Step 9 of the pipeline).
+"""Statistical significance testing.
 
-Two complementary tests are applied:
-
-* **Friedman test** - a non-parametric test for differences across more than two
-  related groups. It is used to ask whether the classifiers differ overall, and
-  whether the imbalance treatment methods differ overall, by ranking their
-  performance within each experimental block.
-
-* **McNemar's test** - a paired test on the *same* test instances. It compares
-  two fitted models by counting the cases where one is correct and the other is
-  wrong, which is more informative than comparing summary metrics because it
-  accounts for the correlation between predictions on shared data.
-
-Where the Friedman test is significant, post-hoc pairwise Wilcoxon signed-rank
-tests with Holm-Bonferroni correction identify *which* pairs differ. Holm is
-used rather than plain Bonferroni because it is uniformly more powerful while
-still controlling the family-wise error rate.
+Friedman for overall comparisons, post-hoc Wilcoxon with Holm-Bonferroni for
+pairs, and McNemar on paired predictions. run_full_tests() applies the same
+tests to the full-scale results and flags comparisons that have too few
+matched blocks to reach significance.
 """
 
 from __future__ import annotations
@@ -30,12 +17,11 @@ from statsmodels.stats.contingency_tables import mcnemar
 
 from config import ALPHA, CLASSIFIER_LABELS, METHOD_LABELS, RESULTS_DIR
 
-PREDICTIONS_DIR = RESULTS_DIR / "predictions"
-FULL_DIR = RESULTS_DIR / "full"
+from config import PREDICTIONS_DIR, STATS_DIR  # noqa: E402
+
+FULL_DIR = RESULTS_DIR
 
 
-# ---------------------------------------------------------------------------
-# Prediction loading
 # ---------------------------------------------------------------------------
 def load_predictions(config_id: str) -> dict[str, np.ndarray]:
     """Load the saved test-set predictions for one configuration."""
@@ -49,15 +35,8 @@ def load_predictions(config_id: str) -> dict[str, np.ndarray]:
 
 
 # ---------------------------------------------------------------------------
-# McNemar's test
-# ---------------------------------------------------------------------------
 def mcnemar_test(config_a: str, config_b: str, alpha: float = ALPHA) -> dict:
-    """Compare two configurations on their shared test set.
-
-    The two models must have been evaluated on identical test instances, which
-    holds whenever they share the same dataset and imbalance ratio (the split is
-    driven by a fixed random seed).
-    """
+    """Compare two configurations on their shared test set."""
     a = load_predictions(config_a)
     b = load_predictions(config_b)
 
@@ -109,11 +88,7 @@ def mcnemar_top_models(
     top_n: int = 2,
     alpha: float = ALPHA,
 ) -> pd.DataFrame:
-    """Run McNemar's test between the best configurations within each dataset.
-
-    Comparisons are made within a dataset because McNemar's test requires the
-    same test instances.
-    """
+    """Run McNemar's test between the best configurations within each dataset."""
     rows = []
     for dataset, group in results.groupby("dataset"):
         best = group.nlargest(top_n, metric)
@@ -130,26 +105,10 @@ def mcnemar_key_comparisons(
     metric: str = "f1",
     alpha: float = ALPHA,
 ) -> pd.DataFrame:
-    """Run the McNemar comparisons that carry the most interpretive weight.
-
-    Ranking the top two configurations often pairs two nearly identical models
-    (for example SMOTE and SMOTETomek can yield the same predictions when no
-    Tomek links are removed), which produces a vacuous test. The comparisons
-    below are chosen instead because each answers a distinct question:
-
-    1. *best vs untreated baseline, same classifier* - did imbalance treatment
-       actually change predictive behaviour?
-    2. *best vs best of each other classifier* - is the leading classifier
-       genuinely better, not just marginally ahead on a summary metric?
-    3. *best vs worst* - how large is the spread across the design space?
-
-    ``all_results`` should include the untreated baseline rows.
-    """
+    """Run the McNemar comparisons that carry the most interpretive weight."""
     rows = []
 
     # Comparisons must stay within a single (dataset, seed) combination, because
-    # a different seed produces a different train-test split and McNemar's test
-    # requires both models to have been evaluated on identical instances.
     group_keys = ["dataset"]
     if "seed" in all_results.columns:
         group_keys.append("seed")
@@ -203,8 +162,6 @@ def mcnemar_key_comparisons(
 
 
 # ---------------------------------------------------------------------------
-# Friedman test
-# ---------------------------------------------------------------------------
 def friedman_test(
     results: pd.DataFrame,
     group_col: str,
@@ -212,17 +169,7 @@ def friedman_test(
     metric: str = "f1",
     alpha: float = ALPHA,
 ) -> dict:
-    """Test whether the levels of ``group_col`` differ in ``metric``.
-
-    Parameters
-    ----------
-    group_col
-        The factor being compared, e.g. ``"classifier"`` or ``"imbalance_method"``.
-    block_cols
-        Columns identifying the matched blocks. For a classifier comparison the
-        blocks are (dataset, imbalance method), so each classifier is measured
-        once per block.
-    """
+    """Test whether the levels of ``group_col`` differ in ``metric``."""
     pivot = results.pivot_table(
         index=block_cols,
         columns=group_col,
@@ -259,15 +206,8 @@ def friedman_test(
 
 
 # ---------------------------------------------------------------------------
-# Post-hoc pairwise comparisons
-# ---------------------------------------------------------------------------
 def holm_bonferroni(p_values: list[float], alpha: float = ALPHA) -> list[bool]:
-    """Return per-hypothesis significance flags under Holm-Bonferroni control.
-
-    P-values are sorted ascending and compared against ``alpha / (m - i)``.
-    Testing stops at the first non-rejection, and all remaining hypotheses are
-    retained, which is what preserves the family-wise error rate.
-    """
+    """Return per-hypothesis significance flags under Holm-Bonferroni control."""
     m = len(p_values)
     order = np.argsort(p_values)
     flags = [False] * m
@@ -323,8 +263,6 @@ def posthoc_wilcoxon(
 
 
 # ---------------------------------------------------------------------------
-# Orchestration
-# ---------------------------------------------------------------------------
 def run_all_tests(
     results_file: str = "results.csv",
     metric: str = "f1",
@@ -347,8 +285,6 @@ def run_all_tests(
     )
 
     # When the sweep has been repeated under several seeds, each seed forms an
-    # additional matched block. This is what lifts the post-hoc tests out of the
-    # very low power regime that a single replication suffers from.
     extra_block = ["seed"] if "seed" in results.columns and results["seed"].nunique() > 1 else []
 
     friedman_classifiers = friedman_test(
@@ -465,41 +401,15 @@ def _print_report(fried_clf, fried_mth, posthoc_clf, posthoc_mth, mcnemar_df, me
 
 
 # ---------------------------------------------------------------------------
-# Full-scale testing
-# ---------------------------------------------------------------------------
-# The full-scale run uses a single seed, so the matched blocks available to the
-# rank-based tests come only from (dataset x classifier) and
-# (dataset x imbalance method) combinations, not from replications as well.
-# Power therefore differs sharply between the three tests and the report says so:
-#
-# * McNemar is unaffected and in fact stronger. It is paired on a single test
-#   set and needs no replications, and the full-scale test partitions (17,730
-#   and 23,320 instances) are four to six times larger.
-# * The classifier comparison has 14 blocks across 3 groups, which is adequate.
-# * The method comparison has only 6 blocks across 7 groups. A Wilcoxon
-#   signed-rank test over 6 pairs cannot return a two-sided p below 0.031,
-#   while Holm-Bonferroni over 21 pairs demands 0.0024 at its tightest. No
-#   pairwise method comparison can reach significance whatever the data show.
-#   That is a property of the design, not a finding, and must not be reported
-#   as evidence of equivalence.
 
 
 def _min_attainable_p(n_blocks: int) -> float:
-    """Smallest two-sided p a Wilcoxon signed-rank test can return.
-
-    With n matched pairs the most extreme outcome is all differences sharing a
-    sign, of two-sided probability 2 / 2**n. Below roughly 8 blocks this floor
-    collides with any multiple-comparison correction.
-    """
+    """Smallest two-sided p a Wilcoxon signed-rank test can return."""
     return 2 / (2 ** n_blocks)
 
 
 def _annotate_power(posthoc: pd.DataFrame, n_blocks: int, alpha: float) -> pd.DataFrame:
-    """Flag comparisons that could not have reached significance either way.
-
-    Without this a reader cannot distinguish "no difference was found" from
-    "no difference could have been found" - very different claims.
-    """
+    """Flag comparisons that could not have reached significance either way."""
     if posthoc.empty or n_blocks == 0:
         return posthoc
     posthoc = posthoc.copy()
@@ -514,13 +424,7 @@ def run_full_tests(
     alpha: float = ALPHA,
     exclude_baseline: bool = True,
 ) -> dict:
-    """Friedman, post-hoc Wilcoxon and McNemar tests on the full-scale results.
-
-    Reads results/full/ and writes back to it using the same filenames the
-    reduced-scale tests use, so the two sets are directly comparable.
-    """
-    global PREDICTIONS_DIR
-
+    """Friedman, post-hoc Wilcoxon and McNemar tests on the full-scale results."""
     path = FULL_DIR / results_file
     if not path.exists():
         raise FileNotFoundError(
@@ -558,12 +462,7 @@ def run_full_tests(
     posthoc_mth = _annotate_power(posthoc_mth, blocks.get("imbalance_method", 0), alpha)
 
     # McNemar reads the full-scale prediction dumps rather than results/.
-    previous = PREDICTIONS_DIR
-    PREDICTIONS_DIR = FULL_DIR / "predictions"
-    try:
-        mcnemar_df = mcnemar_key_comparisons(results, metric=metric, alpha=alpha)
-    finally:
-        PREDICTIONS_DIR = previous
+    mcnemar_df = mcnemar_key_comparisons(results, metric=metric, alpha=alpha)
 
     if not mcnemar_df.empty:
         mcnemar_df = mcnemar_df.sort_values("p_value").reset_index(drop=True)
@@ -580,13 +479,13 @@ def run_full_tests(
             100 * mcnemar_df["n_discordant"] / total
         ).round(2)
 
-    friedman.to_csv(FULL_DIR / "friedman_tests.csv", index=False)
-    posthoc_clf.to_csv(FULL_DIR / "posthoc_classifiers.csv", index=False)
-    posthoc_mth.to_csv(FULL_DIR / "posthoc_methods.csv", index=False)
-    mcnemar_df.to_csv(FULL_DIR / "mcnemar_tests.csv", index=False)
+    friedman.to_csv(STATS_DIR / "friedman_tests.csv", index=False)
+    posthoc_clf.to_csv(STATS_DIR / "posthoc_classifiers.csv", index=False)
+    posthoc_mth.to_csv(STATS_DIR / "posthoc_methods.csv", index=False)
+    mcnemar_df.to_csv(STATS_DIR / "mcnemar_tests.csv", index=False)
 
     _print_full_report(friedman, posthoc_clf, posthoc_mth, mcnemar_df, alpha)
-    print(f"\nWritten to {FULL_DIR}")
+    print(f"\nWritten to {STATS_DIR}")
     return {
         "friedman": friedman,
         "posthoc_classifiers": posthoc_clf,

@@ -1,14 +1,8 @@
-"""
-Preprocessing and the stratified train-test split (Steps 2-3 of the pipeline).
+"""Feature cleaning and the stratified train-test split.
 
-Two points of methodological importance are enforced here:
-
-1. The split is **stratified**, so the phishing proportion is preserved in both
-   the training and test partitions.
-2. The test set is separated **before** any imbalance treatment or scaling is
-   applied, and is never touched again until final evaluation. Feature scaling
-   is fitted inside the cross-validation pipeline (see ``models.py``), not on
-   the full dataset, which prevents information leaking from test to train.
+The split is stratified, and the test set is separated before any treatment or
+scaling. Scaling is fitted inside the pipeline rather than on the full dataset,
+so no information passes from test to train.
 """
 
 from __future__ import annotations
@@ -20,13 +14,7 @@ from config import RANDOM_STATE, TEST_SIZE
 
 
 def clean_features(X: pd.DataFrame) -> pd.DataFrame:
-    """Basic structural cleaning applied identically to both datasets.
-
-    * Drops constant (zero-variance) columns, which carry no information.
-    * Drops exact duplicate columns.
-    * Replaces any infinite values and fills residual gaps with the column
-      median so that downstream estimators receive finite input.
-    """
+    """Basic structural cleaning applied identically to both datasets."""
     X = X.copy()
 
     # Remove zero-variance columns.
@@ -51,11 +39,7 @@ def split_data(
     test_size: float = TEST_SIZE,
     random_state: int = RANDOM_STATE,
 ):
-    """Return a stratified train-test split.
-
-    The stratification guarantees that the minority (phishing) class appears in
-    the test set in the same proportion as in the full dataset.
-    """
+    """Return a stratified train-test split."""
     return train_test_split(
         X,
         y,

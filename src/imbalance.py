@@ -1,19 +1,8 @@
-"""
-Imbalance treatment techniques (Step 4 of the pipeline).
+"""The seven imbalance treatment techniques.
 
-Seven strategies are compared, covering the three families identified in the
-literature review:
-
-* **Data-level, resampling**      - random oversampling, random undersampling
-* **Data-level, synthetic**       - SMOTE, ADASYN
-* **Data-level, hybrid**          - SMOTEENN, SMOTETomek
-* **Algorithm-level, weighting**  - cost-sensitive learning
-
-The first six return an imbalanced-learn *sampler* that is placed inside the
-cross-validation pipeline. Cost-sensitive learning is different in kind: it
-changes the training objective rather than the data, so it returns ``None``
-here and is applied through the classifier's ``class_weight`` parameter
-(see ``models.py``). A ``"none"`` baseline is also provided.
+Six return an imbalanced-learn sampler for use inside the CV pipeline.
+Cost-sensitive learning returns None and is applied through the classifier's
+class_weight instead, since it changes the objective rather than the data.
 """
 
 from __future__ import annotations
@@ -32,11 +21,7 @@ NO_TREATMENT = {"none"}
 
 
 def get_sampler(method: str, random_state: int = RANDOM_STATE):
-    """Return the sampler for ``method``, or ``None`` if no resampling applies.
-
-    Returning ``None`` for ``"none"`` and ``"cost_sensitive"`` is deliberate:
-    the pipeline builder omits the resampling step entirely in those cases.
-    """
+    """Return the sampler for ``method``, or ``None`` if no resampling applies."""
     if method in NO_TREATMENT or method in ALGORITHM_LEVEL:
         return None
 
